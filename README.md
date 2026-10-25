@@ -19,7 +19,6 @@
   - [6.2 Confusion Matrix & Error Cost Analysis](#62-confusion-matrix--error-cost-analysis)
   - [6.3 ROC & Discrimination Analysis](#63-roc--discrimination-analysis)
   - [6.4 Decision Tree Visualization](#64-decision-tree-visualization)
-  - [6.5 Dual-Lens Feature Importance](#65-dual-lens-feature-importance)
 - [7. Interpretability & Complexity Evaluation](#7-interpretability--complexity-evaluation)
 - [8. Discussion & Synthesis](#8-discussion--synthesis)
 - [9. Limitations & Responsible AI](#9-limitations--responsible-ai)
@@ -215,19 +214,6 @@ The top split architecture of the fitted Decision Tree highlights the exact cond
 *Figure 4: Decision Tree split logic (first 3 levels, `max_depth=5`) showing feature test conditions, Gini impurities, sample volumes, and class assignments.*
 
 * **Root Node Split**: The single most decisive split occurs at `cibil_score <= 550.5`. Applicants below this threshold are immediately steered toward rejection branches, establishing a hard credit floor before assets or income are considered.
-
----
-
-### 6.5 Dual-Lens Feature Importance
-
-Comparing non-linear Gini impurity reduction against standardized linear log-odds coefficients reveals how each paradigm interprets loan predictors:
-
-![Feature Importance Comparison](docs/images/feature_importance.png)
-
-*Figure 5: Side-by-side comparison of Decision Tree Gini feature importance (%) versus Logistic Regression standardized coefficients.*
-
-* **Credit Rating Consensus**: Both paradigms agree that `cibil_score` is the overriding predictor. In the Decision Tree, it captures $95.1\%$ of total impurity reduction; in Logistic Regression, its coefficient of $+4.091$ dwarfs all other variables.
-* **Linear vs. Non-linear Nuance**: Logistic Regression penalizes longer loan durations (`loan_term`, $\beta = -0.859$) and higher ratios of loan to income (`income_annum`, $\beta = -1.595$). In contrast, the Decision Tree isolates threshold splits primarily through credit history and loan principal.
 
 ---
 
