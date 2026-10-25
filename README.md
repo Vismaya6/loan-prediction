@@ -1,149 +1,363 @@
-# Loan Approval Prediction — Machine Learning Pipeline
+# Is the Highest-Performing Model Always the Best Model?
+### An Interpretability-Aware Comparison of Logistic Regression, KNN, and Decision Tree on Loan Approval Prediction
 
-An end-to-end Machine Learning system developed collaboratively by a 4-member team to predict loan approval decisions, evaluate classifier performance, and provide decision tree and feature-level interpretability.
-
----
-
-## 👥 Team Responsibilities & Architecture
-
-The system is organized into modular pipeline phases corresponding to each member's contributions:
-
-1. **Member 1 (`member1_data_preprocessing.py`) — Data Preprocessing**:
-   - Cleans column names and object column whitespace.
-   - Maps `loan_status` ("Approved": 1, "Rejected": 0).
-   - One-hot encodes categorical attributes (`education`, `self_employed`).
-   - Performs stratified 80/20 train/test split (`random_state=42`).
-   - Normalizes numerical features with `StandardScaler` for distance/gradient models.
-
-2. **Member 2 (`member2_model_training.py`) — Model Training**:
-   - Trains three distinct supervised classifiers:
-     - **Logistic Regression** (scaled data, `max_iter=1000`, `random_state=42`)
-     - **K-Nearest Neighbors (KNN)** (scaled data, `n_neighbors=5`)
-     - **Decision Tree** (unscaled data, `max_depth=5`, `random_state=42`)
-   - Measures and benchmarks training durations for each model.
-
-3. **Member 3 (`member3_model_evaluation.py`) — Model Evaluation**:
-   - Evaluates predictions using Accuracy, Precision, Recall, and F1 Score.
-   - Computes confusion matrices for false approvals vs. false rejections.
-   - Renders and exports comparative bar charts (`accuracy_comparison.png`, `f1_score_comparison.png`).
-
-4. **Member 4 (`member4_interpretability.py`) — Interpretability & Benchmarking**:
-   - Extracts and ranks Logistic Regression feature coefficients.
-   - Measures Decision Tree complexity metrics (depth, node count, leaf count).
-   - Generates high-resolution tree visualization (`decision_tree_visualization.png`).
-   - Compiles the final consolidated summary table comparing Accuracy, F1 Score, Interpretability, Complexity, and Training Time.
+**Course:** 24SJPCCST503 – Machine Learning  
+**Academic Year:** 2026–2027  
+**Team:** Team 09 | B.Tech, Division B  
+**Institution:** St. Joseph's College of Engineering and Technology, Palai  
 
 ---
 
-## 📁 Project Structure
+## Table of Contents
+- [1. Executive Summary & Research Question](#1-executive-summary--research-question)
+- [2. Research Objectives & Hypotheses](#2-research-objectives--hypotheses)
+- [3. End-to-End Methodology & Workflow](#3-end-to-end-methodology--workflow)
+- [4. Dataset Architecture & Preprocessing](#4-dataset-architecture--preprocessing)
+- [5. Model Configurations](#5-models-compared)
+- [6. Empirical Results & Visualizations](#6-empirical-results--visualizations)
+  - [6.1 Model Performance Comparison](#61-model-performance-comparison)
+  - [6.2 Confusion Matrix & Error Cost Analysis](#62-confusion-matrix--error-cost-analysis)
+  - [6.3 ROC & Discrimination Analysis](#63-roc--discrimination-analysis)
+  - [6.4 Decision Tree Visualization](#64-decision-tree-visualization)
+  - [6.5 Dual-Lens Feature Importance](#65-dual-lens-feature-importance)
+- [7. Interpretability & Complexity Evaluation](#7-interpretability--complexity-evaluation)
+- [8. Discussion & Synthesis](#8-discussion--synthesis)
+- [9. Limitations & Responsible AI](#9-limitations--responsible-ai)
+- [10. Team Members & Contributions](#10-team-members--contributions)
+- [11. Technologies Used](#11-technologies-used)
+- [12. Installation & Reproduction Guide](#12-installation--reproduction-guide)
+- [13. References](#13-references)
+
+---
+
+## 1. Executive Summary & Research Question
+
+> **Central Research Question:**  
+> *"If one machine learning model achieves higher predictive accuracy than another, should it always be selected for automated decision-making in high-stakes domains?"*
+
+In automated financial underwriting, model selection is frequently treated as an optimization exercise over aggregate metrics such as Accuracy or F1-Score. However, in credit granting, healthcare diagnostics, and criminal justice, decisions directly influence individual livelihoods and institutional solvency. 
+
+This research project conducts an **interpretability-aware comparative study** between three standard supervised classification paradigms:
+1. **Logistic Regression** (Linear, highly interpretable parametric baseline)
+2. **K-Nearest Neighbors (KNN)** (Non-parametric, instance-based non-linear learner)
+3. **Decision Tree** (Non-linear, rule-based white-box model)
+
+The investigation moves beyond surface-level predictive benchmarking by evaluating models across four interconnected axes: **predictive accuracy**, **Type I vs. Type II error distributions**, **computational efficiency**, and **qualitative explainability**.
+
+---
+
+## 2. Research Objectives & Hypotheses
+
+### Primary Objectives
+1. Benchmark classification performance across linear, instance-based, and tree-based algorithms on identical stratified loan applicant data.
+2. Quantify asymmetric classification errors—contrasting false approvals (institutional credit risk) against false rejections (opportunity cost and customer detriment).
+3. Evaluate whether non-linear tree rules extract identical financial feature determinants as linear log-odds coefficients.
+4. Establish an empirical framework determining when an interpretable model should be favored over a complex alternative.
+
+### Formal Hypotheses
+* **$\mathbf{H_1}$ (Non-Linear Superiority):** Non-linear classifiers (Decision Tree, KNN) will achieve higher predictive performance than linear Logistic Regression due to non-linear thresholds in creditworthiness.  
+  *Outcome: Partially Supported.* The Decision Tree significantly outperformed Logistic Regression ($96.84\%$ vs. $91.33\%$), but KNN ($89.46\%$) underperformed the linear baseline.
+* **$\mathbf{H_2}$ (Complexity–Utility Disconnect):** The model with the highest accuracy is not automatically the superior operational choice when factoring in explainability and asymmetric financial penalty costs.  
+  *Outcome: Supported.* Model selection depends fundamentally on institutional risk posture: while Decision Tree achieved top accuracy, Logistic Regression offers globally monotonic, auditable log-odds ideal for adverse action notices.
+* **$\mathbf{H_3}$ (Credit Score Dominance):** Both parametric log-odds and non-parametric split metrics will independently converge on applicant credit score (`cibil_score`) as the primary decision driver.  
+  *Outcome: Strongly Supported.* `cibil_score` accounted for $95.1\%$ of Decision Tree Gini importance and held the highest standardized coefficient ($+4.091$) in Logistic Regression.
+
+---
+
+## 3. End-to-End Methodology & Workflow
+
+The experiment follows a strict pipeline architecture engineered to prevent data leakage and guarantee experimental reproducibility across all modules:
+
+![Machine Learning Research Workflow](docs/images/ml_workflow.png)
 
 ```text
-loan-prediction/
-├── .gitignore                      # Python and environment ignore rules
-├── CONTRIBUTING.md                 # Team git workflow and standards
-├── README.md                       # Complete project documentation
-├── requirements.txt                # Version-pinned dependencies
-├── data/
-│   └── README.md                   # Dataset schema and setup guidelines
-├── reports/                        # Auto-generated visualization artifacts
-│   ├── accuracy_comparison.png
-│   ├── f1_score_comparison.png
-│   └── decision_tree_visualization.png
-├── main.py                         # Unified pipeline runner
-├── member1_data_preprocessing.py   # Member 1 module
-├── member2_model_training.py       # Member 2 module
-├── member3_model_evaluation.py     # Member 3 module
-└── member4_interpretability.py     # Member 4 module
+Dataset (N=4,269)
+  └──> Cleaning & Normalization (Trim strings, map target, drop loan_id)
+        └──> Categorical One-Hot Encoding (education, self_employed)
+              └──> Stratified 80/20 Train/Test Partition (random_state=42)
+                    ├──> Training Set (N=3,415)
+                    │     ├──> StandardScaler fitted on X_train (applied to LogReg & KNN)
+                    │     └──> Unscaled X_train (applied to Decision Tree)
+                    └──> Hold-Out Testing Set (N=854)
+                          ├──> Multi-Metric Evaluation (Acc, Prec, Rec, F1, ROC-AUC)
+                          ├──> Asymmetric Confusion Matrix Decomposition
+                          └──> Dual Interpretability Extraction (Log-Odds vs. Gini)
 ```
 
 ---
 
-## 🚀 Quick Start & Setup
+## 4. Dataset Architecture & Preprocessing
 
-### 1. Installation
-Clone the repository and install the dependencies:
+The experimental data is sourced from the [Kaggle Loan Approval Prediction Dataset](https://www.kaggle.com/datasets/architsharma01/loan-approval-prediction-dataset), comprising $4,269$ historical customer loan records.
 
+### Distribution & Schema
+
+| Attribute Category | Columns | Data Type | Description |
+| :--- | :--- | :---: | :--- |
+| **Identifier** | `loan_id` | Integer | Application index (dropped during preprocessing) |
+| **Demographic** | `no_of_dependents` | Integer | Total household dependents ($0$ to $5$) |
+| **Demographic** | `education` | Categorical | Binary: `Graduate` vs. `Not Graduate` |
+| **Employment** | `self_employed` | Categorical | Binary: `Yes` vs. `No` |
+| **Financial / Income** | `income_annum` | Numeric | Annual applicant income ($\text{INR}$) |
+| **Loan Terms** | `loan_amount`, `loan_term` | Numeric | Requested principal & duration in years ($2$ to $20$) |
+| **Credit History** | `cibil_score` | Numeric | CIBIL credit rating ($300$ to $900$) |
+| **Asset Portfolio** | `residential_assets_value`<br>`commercial_assets_value`<br>`luxury_assets_value`<br>`bank_asset_value` | Numeric | Declared customer asset valuations |
+| **Target Variable** | `loan_status` | Categorical | `Approved`: $2,656$ ($62.2\%$) \| `Rejected`: $1,613$ ($37.8\%$) |
+
+### Preprocessing & Leakage Safeguards
+1. **String Normalization**: Leading and trailing whitespace was stripped from column headers and categorical string cells.
+2. **Feature Encoding**: `education` was dummy-encoded (`education_Not Graduate`, baseline: Graduate); `self_employed` was dummy-encoded (`self_employed_Yes`, baseline: No).
+3. **Partitioning**: Stratified 80/20 train/test split preserving the $62.2\% / 37.8\%$ positive/negative ratio ($3,415$ training, $854$ testing records).
+4. **Feature Standardization**: `StandardScaler` was fitted strictly on the training partition ($X_{\text{train}}$) and subsequently applied to transform $X_{\text{test}}$, preventing data leakage.
+
+### Known Dataset Limitations
+* **Clean Data Anomaly**: Zero missing values exist across all $4,269$ entries, indicating curated or synthetic data collection.
+* **Negative Asset Valuations**: Occasional negative asset figures (e.g., residential asset value of $-100,000$) occur in the source data, likely representing liabilities or data entry errors.
+* **Lack of Temporal Attributes**: Time-series macro-economic indicators (interest rate shifts, inflation) are absent.
+
+---
+
+## 5. Models Compared
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                   CLASSIFICATION PARADIGMS EVALUATED                   │
+└────────────────────────────────────────────────────────────────────────┘
+          │                                  │
+          ▼                                  ▼
+   PARAMETRIC LINEAR               NON-PARAMETRIC RULES
+  [Logistic Regression]              [Decision Tree]
+   • Log-odds linear boundary         • Orthogonal recursive splits
+   • Global feature weights           • If-then hierarchical rules
+   • High transparency                • Non-linear step boundaries
+                                     │
+                                     ▼
+                            INSTANCE-BASED MEMORY
+                           [K-Nearest Neighbors]
+                            • Local geometric vote (k=5)
+                            • Distance in 11D space
+                            • Opaque decision surface
+```
+
+1. **Logistic Regression (`max_iter=1000`, `random_state=42`)**:
+   - Models the log-odds of loan approval as a linear combination of standardized features:  
+     $$\ln\left(\frac{p}{1-p}\right) = \beta_0 + \sum_{j=1}^{11} \beta_j X_j$$
+   - Highly auditable: Each coefficient $\beta_j$ represents the change in log-odds per standard deviation increase in feature $X_j$.
+2. **K-Nearest Neighbors ($k=5$, Euclidean Distance)**:
+   - Assigns approval by majority consensus among the 5 nearest training instances in scaled 11-dimensional space:  
+     $$d(\mathbf{x}, \mathbf{z}) = \sqrt{\sum_{j=1}^{11} (x_j - z_j)^2}$$
+   - Non-parametric flexibility, but lacks an interpretable parametric formula (black-box instance memory).
+3. **Decision Tree Classifier (`max_depth=5`, Gini Impurity, `random_state=42`)**:
+   - Recursively partitions feature space using orthogonal splits that minimize Gini impurity:  
+     $$I_G(t) = 1 - \sum_{k=0}^{1} p(k|t)^2$$
+   - Provides fully human-readable if-then decision paths with variable thresholding.
+
+---
+
+## 6. Empirical Results & Visualizations
+
+### 6.1 Model Performance Comparison
+
+The experimental models were tested on the unseen hold-out partition ($854$ samples). The reported empirical performance metrics are detailed below:
+
+| Classifier | Accuracy | Precision | Recall | F1-Score | Parameter Complexity | Training Duration |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Decision Tree (depth=5)** | **96.84%** | **98.28%** | **96.61%** | **97.44%** | 31 nodes, 16 leaves | $\approx 0.0071\,\text{s}$ |
+| **Logistic Regression** | 91.33% | 92.08% | 94.16% | 93.11% | 11 coefficients | $\approx 0.0084\,\text{s}$ |
+| **K-Nearest Neighbors ($k=5$)** | 89.46% | 90.61% | 92.66% | 91.62% | 3,415 stored vectors | $\approx 0.0052\,\text{s}$ |
+
+![Model Performance Comparison](docs/images/model_performance_comparison.png)
+
+*Figure 1: Grouped bar chart comparing classification metrics across models on the test partition ($N=854$).*
+
+---
+
+### 6.2 Confusion Matrix & Error Cost Analysis
+
+In retail banking, **all errors are not created equal**:
+* **False Positive (Type I Error — False Approval)**: The model approves a high-risk applicant who subsequently defaults. The direct financial loss equals the unpaid principal plus recovery costs.
+* **False Negative (Type II Error — False Rejection)**: The model rejects a creditworthy applicant. The institutional loss is limited to forgone interest margin, though it introduces customer attrition and potential regulatory fair-lending scrutiny.
+
+The actual prediction counts across the $854$ test instances decompose as follows:
+
+| Model | Total Errors | False Approvals (FP) | False Rejections (FN) | Net Cost Severity |
+| :--- | :---: | :---: | :---: | :--- |
+| **Decision Tree** | **27** | **9** ($1.05\%$) | **18** ($2.11\%$) | **Lowest Institutional Risk** |
+| **Logistic Regression** | 74 | 43 ($5.04\%$) | 31 ($3.63\%$) | Moderate Capital Exposure |
+| **K-Nearest Neighbors** | 90 | 51 ($5.97\%$) | 39 ($4.57\%$) | Highest Default Exposure |
+
+![Confusion Matrices](docs/images/confusion_matrices.png)
+
+*Figure 2: Confusion matrix decomposition for all three models showing exact counts and class error rates.*
+
+---
+
+### 6.3 ROC & Discrimination Analysis
+
+To evaluate class-probability ranking capacity independent of a static $0.5$ classification threshold, Receiver Operating Characteristic (ROC) curves were constructed:
+
+![ROC Curves](docs/images/roc_curves.png)
+
+*Figure 3: Receiver Operating Characteristic (ROC) curves with computed Area Under Curve (AUC) scores.*
+
+* **Decision Tree ($\text{AUC} = 0.9850$)**: Achieves near-optimal separation, rising steeply at low false positive rates.
+* **Logistic Regression ($\text{AUC} = 0.9701$)**: Demonstrates strong discrimination across diverse operating thresholds.
+* **K-Nearest Neighbors ($\text{AUC} = 0.9573$)**: Exhibits reduced ranking smoothness due to discrete $k=5$ vote steps.
+
+---
+
+### 6.4 Decision Tree Visualization
+
+The top split architecture of the fitted Decision Tree highlights the exact conditional rules governing classification:
+
+![Decision Tree Architecture](docs/images/decision_tree_visualization.png)
+
+*Figure 4: Decision Tree split logic (first 3 levels, `max_depth=5`) showing feature test conditions, Gini impurities, sample volumes, and class assignments.*
+
+* **Root Node Split**: The single most decisive split occurs at `cibil_score <= 550.5`. Applicants below this threshold are immediately steered toward rejection branches, establishing a hard credit floor before assets or income are considered.
+
+---
+
+### 6.5 Dual-Lens Feature Importance
+
+Comparing non-linear Gini impurity reduction against standardized linear log-odds coefficients reveals how each paradigm interprets loan predictors:
+
+![Feature Importance Comparison](docs/images/feature_importance.png)
+
+*Figure 5: Side-by-side comparison of Decision Tree Gini feature importance (%) versus Logistic Regression standardized coefficients.*
+
+* **Credit Rating Consensus**: Both paradigms agree that `cibil_score` is the overriding predictor. In the Decision Tree, it captures $95.1\%$ of total impurity reduction; in Logistic Regression, its coefficient of $+4.091$ dwarfs all other variables.
+* **Linear vs. Non-linear Nuance**: Logistic Regression penalizes longer loan durations (`loan_term`, $\beta = -0.859$) and higher ratios of loan to income (`income_annum`, $\beta = -1.595$). In contrast, the Decision Tree isolates threshold splits primarily through credit history and loan principal.
+
+---
+
+## 7. Interpretability & Complexity Evaluation
+
+The models were qualitatively and quantitatively benchmarked across five dimensions of operational readiness:
+
+| Evaluation Dimension | Logistic Regression | K-Nearest Neighbors | Decision Tree |
+| :--- | :--- | :--- | :--- |
+| **Mathematical Transparency** | **High**: Global linear log-odds equation. | **Low**: Implicit voting in 11D space. | **High**: Nested if-then rule hierarchy. |
+| **Adverse Action Compliance** | **High**: Readily provides top negative factors. | **Low**: Cannot articulate single-feature causes. | **Moderate**: Shows split path, but can be brittle. |
+| **Monotonicity Enforcement** | **High**: Strictly monotonic per feature slope. | **Low**: Complex local boundary fluctuations. | **Moderate**: Step-wise constant thresholds. |
+| **Inference Latency** | **Fastest** ($\mathcal{O}(d)$ dot product). | **Slowest** ($\mathcal{O}(Nd)$ distance scans). | **Fast** ($\mathcal{O}(\text{depth})$ comparisons). |
+| **Auditability for Non-Technical Stakeholders** | Moderate (requires log-odds comprehension). | Poor (opaque point clouds). | **Best** (intuitive flowchart representation). |
+
+---
+
+## 8. Discussion & Synthesis
+
+### Answering the Research Question
+> *"If one model is more accurate but less interpretable, should it always be selected?"*
+
+Our empirical findings demonstrate that **predictive accuracy alone is an insufficient selection criterion**, though the trade-off is nuanced:
+
+1. **The Win-Win of Shallow Trees**: In this specific problem domain, the **Decision Tree (`depth=5`) achieved both the highest accuracy ($96.84\%$) and superior interpretability**. Its explicit if-then rules directly expose the lending policy to human underwriters while suppressing false approvals to just $1.05\%$.
+2. **When to Choose Logistic Regression**: Despite lower raw accuracy ($91.33\%$), Logistic Regression guarantees **global monotonicity** (e.g., increasing CIBIL score can never arbitrarily decrease approval probability at a local boundary step). For strict regulatory environments requiring continuous scoring formulas, Logistic Regression remains an indispensable, legally defensible model.
+3. **The Unfavorable Profile of KNN**: KNN exhibited the lowest accuracy ($89.46\%$), highest error count ($90$), highest Type I capital default risk ($51$ false approvals), and slowest inference scalability, while offering the poorest explainability. In retail credit risk, instance-based classifiers without global explanatory mechanisms are clearly suboptimal.
+
+---
+
+## 9. Limitations & Responsible AI
+
+* **Single Split Protocol**: Results are evaluated on a single stratified 80/20 train/test split. While stratified, repeated k-fold cross-validation would provide tighter confidence bounds on performance variance.
+* **Hyperparameter Search Scope**: Models used standard fixed hyperparameters (`max_depth=5`, $k=5$, `max_iter=1000`). Grid or Bayesian optimization could alter relative rankings.
+* **Fairness & Disparate Impact**: The dataset lacks demographic attributes (age, gender, ethnicity), precluding formal disparate impact analysis. In production credit underwriting, compliance with the Equal Credit Opportunity Act (ECOA) is mandatory.
+* **Synthetic Data Warning**: The absence of missing values and the presence of unusual negative asset valuations suggest synthetic generation. Findings should not be extrapolated directly to live production loan books without calibration on audited banking data.
+
+---
+
+## 10. Team Members & Contributions
+
+**Team 09 — B.Tech Computer Science and Engineering (Division B)**  
+*St. Joseph's College of Engineering and Technology, Palai*
+
+| Team Member | Student ID | Primary Project Responsibility | Module Authored |
+| :--- | :---: | :--- | :--- |
+| **Vismaya Theresa Benny** | `SJC24CS216` | **Member 1: Data Preprocessing**<br>Dataset ingestion, whitespace cleaning, categorical encoding, stratified splitting, and feature standardization. | [`member1_data_preprocessing.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/member1_data_preprocessing.py) |
+| **Annu James** | `SJC24CS071` | **Member 2: Model Training**<br>Model instantiation (LogReg, KNN, Decision Tree), training benchmarking, timer measurements, and prediction pipeline. | [`member2_model_training.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/member2_model_training.py) |
+| **Athul Raj** | `SJC24CS081` | **Member 3: Model Evaluation**<br>Calculation of Accuracy, Precision, Recall, F1-scores, confusion matrix decomposition, and performance bar charts. | [`member3_model_evaluation.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/member3_model_evaluation.py) |
+| **Joshwin James** | `SJC24CS140` | **Member 4: Interpretability & Synthesis**<br>Extraction of LogReg coefficients, tree complexity metrics, high-resolution tree rendering, and final comparative synthesis. | [`member4_interpretability.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/member4_interpretability.py) |
+
+---
+
+## 11. Technologies Used
+
+* **Language**: Python 3.11+
+* **Data Processing**: Pandas ($\ge 2.0.0$), NumPy ($\ge 1.24.0$)
+* **Machine Learning**: Scikit-Learn ($\ge 1.3.0$)
+  - `sklearn.linear_model.LogisticRegression`
+  - `sklearn.neighbors.KNeighborsClassifier`
+  - `sklearn.tree.DecisionTreeClassifier`, `plot_tree`
+  - `sklearn.preprocessing.StandardScaler`
+  - `sklearn.model_selection.train_test_split`
+  - `sklearn.metrics` (`accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `confusion_matrix`, `roc_curve`, `roc_auc_score`)
+* **Visualization**: Matplotlib ($\ge 3.7.0$)
+* **Version Control**: Git & GitHub Flow (Feature branching, PR code reviews)
+
+---
+
+## 12. Installation & Reproduction Guide
+
+### 1. Repository Setup
 ```bash
 git clone https://github.com/Vismaya6/loan-prediction.git
 cd loan-prediction
+```
+
+### 2. Dependency Installation
+Create and activate an isolated virtual environment, then install requirements:
+```bash
+python -m venv .venv
+
+# On Windows:
+.venv\Scripts\activate
+
+# On Linux/macOS:
+source .venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-### 2. Dataset Setup
-Place the loan approval dataset CSV into either the project root or the `data/` directory.
-Supported filenames:
-- `loan_approval_dataset (1).csv`
-- `loan_approval_dataset.csv`
+### 3. Dataset Configuration
+Place the dataset file in the project root or the `data/` directory named:
+* `loan_approval_dataset (1).csv` OR `loan_approval_dataset.csv`
 
-*(If the dataset is omitted, the pipeline raises an informative error guiding you to place the file.)*
+*(The repository includes automated candidate path resolution).*
 
----
-
-## ⚙️ Running the Pipeline
-
-### Option A: Run the Unified Pipeline (Recommended)
-Executes all 4 phases sequentially and saves all report figures to `reports/`:
-
+### 4. Running the Experiment
+Execute the unified pipeline runner:
 ```bash
 python main.py
 ```
 
-You can also specify a custom path to your dataset:
+Or execute individual member modules sequentially:
 ```bash
-python main.py path/to/your_dataset.csv
-```
-
-### Option B: Run Individual Member Modules
-Each module is self-contained and can be executed independently:
-
-```bash
-# Phase 1: Data inspection and preprocessing
+# Phase 1: Preprocessing & inspection
 python member1_data_preprocessing.py
 
-# Phase 2: Model training and prediction
+# Phase 2: Model training & execution timing
 python member2_model_training.py
 
-# Phase 3: Performance evaluation and confusion matrices
+# Phase 3: Performance evaluation & confusion matrices
 python member3_model_evaluation.py
 
-# Phase 4: Model interpretability and final comparison
+# Phase 4: Model interpretability & final summary table
 python member4_interpretability.py
 ```
 
----
-
-## 📊 Empirical Evaluation Results
-
-Evaluated on the full 4,269-applicant dataset (stratified 80/20 train/test split with 854 test instances):
-
-| Model | Accuracy | Precision | Recall | F1 Score | Complexity | Interpretability | Training Time |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Decision Tree (depth=5)** | **96.84%** | **98.28%** | **96.61%** | **0.9744** | Medium | High | ~0.0065s |
-| **Logistic Regression** | 91.33% | 92.08% | 94.16% | 0.9311 | Low | High | ~0.0124s |
-| **KNN (k=5)** | 89.46% | 90.61% | 92.66% | 0.9162 | Low | Low | ~0.0065s |
-
-### Confusion Matrix Breakdown (854 Test Samples)
-- **Decision Tree**:
-  - True Rejected ($TN$): 314 | False Approved ($FP$): 9
-  - False Rejected ($FN$): 18 | True Approved ($TP$): 513
-  - *Risk Analysis*: Minimizes credit default risk with only 9 false approvals ($1.05\%$).
-- **Logistic Regression**:
-  - True Rejected ($TN$): 280 | False Approved ($FP$): 43
-  - False Rejected ($FN$): 31 | True Approved ($TP$): 500
-- **KNN**:
-  - True Rejected ($TN$): 272 | False Approved ($FP$): 51
-  - False Rejected ($FN$): 39 | True Approved ($TP$): 492
-
-### Key Feature Determinants (Logistic Regression Coefficients)
-- **`cibil_score` (+4.091)**: The single strongest positive driver of loan approval.
-- **`loan_amount` (+1.321)**: Positively correlates with approved applicants in this portfolio.
-- **`income_annum` (-1.595)** & **`loan_term` (-0.859)**: Longer terms negatively affect approval probability.
+### 5. Regenerating Documentation Visualizations
+To re-generate all publication-quality chart assets in `docs/images/`:
+```bash
+python generate_visualizations.py
+```
 
 ---
 
-## ⚖️ Ethical & Practical Considerations
+## 13. References
 
-In automated loan underwriting:
-* **False Approvals (Type I Error)**: Approving a borrower at risk of default directly impacts lending solvency and credit risk.
-* **False Rejections (Type II Error)**: Rejecting a creditworthy applicant results in lost revenue and may unfairly exclude individuals from access to credit.
-* **Fairness & Interpretability**: Black-box models (such as deep KNN embeddings) can obscure the reasoning behind rejections. Combining high-interpretability models (Logistic Regression and shallow Decision Trees) enables loan officers to audit decision factors transparently against regulatory compliance standards.
+1. Sharma, A. (2023). *Loan Approval Prediction Dataset*. Kaggle. Available at: [https://www.kaggle.com/datasets/architsharma01/loan-approval-prediction-dataset](https://www.kaggle.com/datasets/architsharma01/loan-approval-prediction-dataset)
+2. Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning: Data Mining, Inference, and Prediction*. 2nd Edition, Springer.
+3. Molnar, C. (2022). *Interpretable Machine Learning: A Guide for Making Black Box Models Explainable*. 2nd Edition.
+4. Breiman, L., Friedman, J., Stone, C. J., & Olshen, R. A. (1984). *Classification and Regression Trees*. CRC Press.
+5. Pedregosa, F., et al. (2011). *Scikit-learn: Machine Learning in Python*. Journal of Machine Learning Research, 12, 2825-2830.
