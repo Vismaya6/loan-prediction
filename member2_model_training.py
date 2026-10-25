@@ -8,13 +8,32 @@ from sklearn.tree import DecisionTreeClassifier
 from member1_data_preprocessing import prepare_data
 
 
-def train_models():
-    (
-        X, X_train, X_test, y_train, y_test,
-        X_train_scaled, X_test_scaled, scaler
-    ) = prepare_data()
+def train_models(data_tuple=None):
+    """
+    Train Logistic Regression, KNN, and Decision Tree models.
 
-    log_model = LogisticRegression(max_iter=1000)
+    Parameters
+    ----------
+    data_tuple : tuple, optional
+        Preprocessed tuple from prepare_data(). If None, calls prepare_data().
+
+    Returns
+    -------
+    dict
+        Dictionary containing trained models, predictions, times, and data splits.
+    """
+    if data_tuple is None:
+        (
+            X, X_train, X_test, y_train, y_test,
+            X_train_scaled, X_test_scaled, scaler
+        ) = prepare_data()
+    else:
+        (
+            X, X_train, X_test, y_train, y_test,
+            X_train_scaled, X_test_scaled, scaler
+        ) = data_tuple
+
+    log_model = LogisticRegression(max_iter=1000, random_state=42)
     knn_model = KNeighborsClassifier(n_neighbors=5)
     dt_model = DecisionTreeClassifier(max_depth=5, random_state=42)
 

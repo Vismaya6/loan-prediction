@@ -28,3 +28,11 @@ Thumbs.db
 
 # Output logs
 *.log
+
+# Test cache
+.pytest_cache/
+
+# Local datasets
+*.csv
+!tests/fixtures/*.csv
+
