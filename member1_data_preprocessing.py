@@ -10,8 +10,9 @@ DATA_FILE = "loan_approval_dataset (1).csv"
 
 def get_data_filepath(filepath=None):
     """Locate the dataset file across standard candidate paths."""
-    if filepath and os.path.exists(filepath):
-        return filepath
+    if filepath is not None:
+        return filepath if os.path.exists(filepath) else None
+
     candidates = [
         DATA_FILE,
         "loan_approval_dataset.csv",
