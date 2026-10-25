@@ -20,7 +20,7 @@
   - [6.3 ROC & Discrimination Analysis](#63-roc--discrimination-analysis)
   - [6.4 Decision Tree Visualization](#64-decision-tree-visualization)
 - [7. Interpretability & Complexity Evaluation](#7-interpretability--complexity-evaluation)
-- [8. Discussion & Synthesis](#8-discussion--synthesis)
+- [8. Discussion & Conclusion](#8-discussion--conclusion)
 - [9. Limitations & Responsible AI](#9-limitations--responsible-ai)
 - [10. Team Members & Contributions](#10-team-members--contributions)
 - [11. Technologies Used](#11-technologies-used)
@@ -231,16 +231,25 @@ The models were qualitatively and quantitatively benchmarked across five dimensi
 
 ---
 
-## 8. Discussion & Synthesis
+## 8. Discussion & Conclusion
 
-### Answering the Research Question
+### Direct Answer to the Research Question
 > *"If one model is more accurate but less interpretable, should it always be selected?"*
 
-Our empirical findings demonstrate that **predictive accuracy alone is an insufficient selection criterion**, though the trade-off is nuanced:
+**No. Predictive accuracy alone should never be the sole criterion for selecting a machine learning model in high-stakes domains like loan underwriting.** Model selection must balance four competing dimensions: predictive accuracy, asymmetric financial error costs (Type I credit default risk vs. Type II lost customer opportunity), regulatory auditability, and operational complexity.
 
-1. **The Win-Win of Shallow Trees**: In this specific problem domain, the **Decision Tree (`depth=5`) achieved both the highest accuracy ($96.84\%$) and superior interpretability**. Its explicit if-then rules directly expose the lending policy to human underwriters while suppressing false approvals to just $1.05\%$.
-2. **When to Choose Logistic Regression**: Despite lower raw accuracy ($91.33\%$), Logistic Regression guarantees **global monotonicity** (e.g., increasing CIBIL score can never arbitrarily decrease approval probability at a local boundary step). For strict regulatory environments requiring continuous scoring formulas, Logistic Regression remains an indispensable, legally defensible model.
-3. **The Unfavorable Profile of KNN**: KNN exhibited the lowest accuracy ($89.46\%$), highest error count ($90$), highest Type I capital default risk ($51$ false approvals), and slowest inference scalability, while offering the poorest explainability. In retail credit risk, instance-based classifiers without global explanatory mechanisms are clearly suboptimal.
+### Summary of Empirical Findings & Model Verdicts
+
+| Model | Final Verdict & Recommendation | Rationale |
+| :--- | :--- | :--- |
+| **Decision Tree (`depth=5`)** | 🏆 **Best Overall Operational Model** | Achieved the highest accuracy ($96.84\%$), highest F1 ($97.44\%$), and lowest false approvals ($9$ errors). It resolves the accuracy-interpretability dilemma by providing human-readable if-then decision paths that loan officers can easily audit. |
+| **Logistic Regression** | ⚖️ **Best for Strict Regulatory Compliance** | Solid baseline ($91.33\%$ accuracy). Its continuous, globally monotonic log-odds formula ensures legally defensible Adverse Action notices (e.g., credit score increases can never arbitrarily trigger rejection). |
+| **K-Nearest Neighbors ($k=5$)** | ❌ **Not Recommended for Credit Risk** | Lowest accuracy ($89.46\%$), highest capital loss risk ($51$ false approvals), slowest inference scaling ($\mathcal{O}(Nd)$), and opaque decision mechanics in 11D space. |
+
+### Final Research Conclusions
+1. **The Accuracy–Interpretability Dilemma Is Not Absolute**: Contrary to the common assumption that higher accuracy requires opaque models, shallow Decision Trees demonstrated that non-linear rule-based models can simultaneously maximize predictive power and transparency in credit scoring.
+2. **Asymmetric Error Costs Outweigh Raw Accuracy**: In credit underwriting, a $1\%$ difference in raw accuracy is far less critical than the distribution of errors: 9 false approvals with Decision Tree versus 51 with KNN represents a massive difference in potential institutional capital loss.
+3. **Credit History as the Universal Decider**: Both parametric log-odds and non-parametric split metrics independently converged on `cibil_score` as the dominant factor, demonstrating that borrower credit history outweighs income or declared assets in loan granting.
 
 ---
 
