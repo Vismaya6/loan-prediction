@@ -29,8 +29,8 @@ Thank you for contributing to the Loan Approval Prediction project!
    - Ensure all automated tests (`pytest`) pass before requesting a review.
    - Do not force-push (`--force`) to shared branches.
 
-4. **Testing Before Submitting**:
-   - Always run the test suite locally before pushing:
+4. **Verification Before Submitting**:
+   - Always run the pipeline locally before pushing:
      ```bash
-     pytest -v tests/
+     python main.py
      ```

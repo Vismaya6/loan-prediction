@@ -49,10 +49,6 @@ loan-prediction/
 │   ├── accuracy_comparison.png
 │   ├── f1_score_comparison.png
 │   └── decision_tree_visualization.png
-├── tests/                          # Automated unit and integration tests
-│   ├── __init__.py
-│   ├── test_pipeline.py            # End-to-end pipeline tests
-│   └── test_preprocessing.py       # Preprocessing unit tests
 ├── main.py                         # Unified pipeline runner
 ├── member1_data_preprocessing.py   # Member 1 module
 ├── member2_model_training.py       # Member 2 module
@@ -112,16 +108,6 @@ python member3_model_evaluation.py
 
 # Phase 4: Model interpretability and final comparison
 python member4_interpretability.py
-```
-
----
-
-## 🧪 Running Automated Tests
-
-The project includes unit and integration tests covering data integrity, model outputs, and end-to-end execution:
-
-```bash
-pytest -v tests/
 ```
 
 ---
