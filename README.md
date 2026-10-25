@@ -126,6 +126,35 @@ pytest -v tests/
 
 ---
 
+## 📊 Empirical Evaluation Results
+
+Evaluated on the full 4,269-applicant dataset (stratified 80/20 train/test split with 854 test instances):
+
+| Model | Accuracy | Precision | Recall | F1 Score | Complexity | Interpretability | Training Time |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Decision Tree (depth=5)** | **96.84%** | **98.28%** | **96.61%** | **0.9744** | Medium | High | ~0.0065s |
+| **Logistic Regression** | 91.33% | 92.08% | 94.16% | 0.9311 | Low | High | ~0.0124s |
+| **KNN (k=5)** | 89.46% | 90.61% | 92.66% | 0.9162 | Low | Low | ~0.0065s |
+
+### Confusion Matrix Breakdown (854 Test Samples)
+- **Decision Tree**:
+  - True Rejected ($TN$): 314 | False Approved ($FP$): 9
+  - False Rejected ($FN$): 18 | True Approved ($TP$): 513
+  - *Risk Analysis*: Minimizes credit default risk with only 9 false approvals ($1.05\%$).
+- **Logistic Regression**:
+  - True Rejected ($TN$): 280 | False Approved ($FP$): 43
+  - False Rejected ($FN$): 31 | True Approved ($TP$): 500
+- **KNN**:
+  - True Rejected ($TN$): 272 | False Approved ($FP$): 51
+  - False Rejected ($FN$): 39 | True Approved ($TP$): 492
+
+### Key Feature Determinants (Logistic Regression Coefficients)
+- **`cibil_score` (+4.091)**: The single strongest positive driver of loan approval.
+- **`loan_amount` (+1.321)**: Positively correlates with approved applicants in this portfolio.
+- **`income_annum` (-1.595)** & **`loan_term` (-0.859)**: Longer terms negatively affect approval probability.
+
+---
+
 ## ⚖️ Ethical & Practical Considerations
 
 In automated loan underwriting:
