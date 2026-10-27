@@ -13,19 +13,25 @@
 - [2. Research Objectives & Hypotheses](#2-research-objectives--hypotheses)
 - [3. End-to-End Methodology & Workflow](#3-end-to-end-methodology--workflow)
 - [4. Dataset Architecture & Preprocessing](#4-dataset-architecture--preprocessing)
-- [5. Model Configurations](#5-models-compared)
-- [6. Empirical Results & Visualizations](#6-empirical-results--visualizations)
+- [5. Models Compared](#5-models-compared)
+- [6. Primary Empirical Results & Visualizations (Kaggle Dataset, N=4,269)](#6-primary-empirical-results--visualizations-kaggle-dataset-n4269)
   - [6.1 Model Performance Comparison](#61-model-performance-comparison)
   - [6.2 Confusion Matrix & Error Cost Analysis](#62-confusion-matrix--error-cost-analysis)
   - [6.3 ROC & Discrimination Analysis](#63-roc--discrimination-analysis)
   - [6.4 Decision Tree Visualization](#64-decision-tree-visualization)
-- [7. Interpretability & Complexity Evaluation](#7-interpretability--complexity-evaluation)
-- [8. Discussion & Conclusion](#8-discussion--conclusion)
-- [9. Limitations & Responsible AI](#9-limitations--responsible-ai)
-- [10. Team Members & Contributions](#10-team-members--contributions)
-- [11. Technologies Used](#11-technologies-used)
-- [12. Installation & Reproduction Guide](#12-installation--reproduction-guide)
-- [13. References](#13-references)
+- [7. Multi-Split Validation on Secondary Dataset (train.csv, N=614)](#7-multi-split-validation-on-secondary-dataset-traincsv-n614)
+  - [7.1 Motivation & Experimental Protocol](#71-motivation--experimental-protocol)
+  - [7.2 10-Run Empirical Results & Accuracy Table](#72-10-run-empirical-results--accuracy-table)
+  - [7.3 Win Count Summary & Cross-Run Statistics](#73-win-count-summary--cross-run-statistics)
+  - [7.4 Cross-Run Model Performance Visualization](#74-cross-run-model-performance-visualization)
+  - [7.5 Research Verdict: Does Decision Tree Always Win?](#75-research-verdict-does-decision-tree-always-win)
+- [8. Interpretability & Complexity Evaluation](#8-interpretability--complexity-evaluation)
+- [9. Discussion & Conclusion](#9-discussion--conclusion)
+- [10. Limitations & Responsible AI](#10-limitations--responsible-ai)
+- [11. Team Members & Contributions](#11-team-members--contributions)
+- [12. Technologies Used](#12-technologies-used)
+- [13. Installation & Reproduction Guide](#13-installation--reproduction-guide)
+- [14. References](#14-references)
 
 ---
 
@@ -153,7 +159,7 @@ The experimental data is sourced from the [Kaggle Loan Approval Prediction Datas
 
 ---
 
-## 6. Empirical Results & Visualizations
+## 6. Primary Empirical Results & Visualizations (Kaggle Dataset, N=4,269)
 
 ### 6.1 Model Performance Comparison
 
@@ -217,7 +223,85 @@ The top split architecture of the fitted Decision Tree highlights the exact cond
 
 ---
 
-## 7. Interpretability & Complexity Evaluation
+## 7. Multi-Split Validation on Secondary Dataset (train.csv, N=614)
+
+### 7.1 Motivation & Experimental Protocol
+While the Decision Tree demonstrated superior accuracy ($96.84\%$) on the primary Kaggle dataset ($N=4,269$), critical empirical questions remained:
+1. **Split Sensitivity**: Did the Decision Tree benefit from an unusually favorable single train-test split ($80:20$, `random_state=42`)?
+2. **Data Cleanliness Bias**: The primary dataset was uniquely clean (zero missing values, perfectly separable CIBIL score cutoff at $550.5$). How do the models behave on real-world loan applications featuring missing entries and non-trivial class overlap?
+
+To definitively address the core research question (*"Is the highest-performing model always the best model?"*), we conducted a secondary validation experiment using the standard industry benchmark **Loan Prediction dataset (`train.csv`, $614$ records)** across **10 independent stratified splits**.
+
+#### Experimental Protocol & Anti-Leakage Safeguards
+* **Total Applications**: $614$ records ($422$ Approved [68.7%], $192$ Rejected [31.3%]).
+* **10 Experiments**: 10 distinct random seeds were evaluated (`[42, 1, 7, 13, 21, 55, 99, 123, 777, 2024]`).
+* **80:20 Stratified Split**: Each run generated an independent 80% training ($491$ samples) and 20% test partition ($123$ samples) preserving class proportions.
+* **Identical Splits Across Models**: In every experiment, the exact same train-test split was used for Logistic Regression, KNN, and Decision Tree.
+* **Data Leakage Safeguards**:
+  - Imputation and scaling transformers were **fitted strictly on the training partition** ($X_{\text{train}}$) and applied to transform $X_{\text{test}}$.
+  - Continuous missing values (`ApplicantIncome`, `CoapplicantIncome`, `LoanAmount`, `Loan_Amount_Term`, `Credit_History`) were imputed via training median (`SimpleImputer(strategy='median')`).
+  - Categorical missing values (`Gender`, `Married`, `Dependents`, `Education`, `Self_Employed`, `Property_Area`) were imputed via training mode (`SimpleImputer(strategy='most_frequent')`), followed by One-Hot Encoding (`drop='first'`).
+  - `StandardScaler` was fitted strictly on $X_{\text{train}}$ and applied to Logistic Regression and KNN. Decision Tree was evaluated on unscaled features.
+
+---
+
+### 7.2 10-Run Empirical Results & Accuracy Table
+All accuracy figures were computed directly from actual model predictions across all 10 independent experiments:
+
+| Run | Random Seed | Logistic Regression | K-Nearest Neighbors (KNN) | Decision Tree (`max_depth=5`) | Winning Model |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| **1** | `42` | **86.18%** | 83.74% | 82.93% | 🏆 Logistic Regression |
+| **2** | `1` | **83.74%** | 80.49% | **83.74%** | 🤝 Tie: Logistic Regression & Decision Tree |
+| **3** | `7` | **78.86%** | 76.42% | 77.24% | 🏆 Logistic Regression |
+| **4** | `13` | **84.55%** | 81.30% | 81.30% | 🏆 Logistic Regression |
+| **5** | `21` | **83.74%** | 79.67% | 82.11% | 🏆 Logistic Regression |
+| **6** | `55` | **82.11%** | 81.30% | 80.49% | 🏆 Logistic Regression |
+| **7** | `99` | **84.55%** | 83.74% | 83.74% | 🏆 Logistic Regression |
+| **8** | `123` | **79.67%** | 78.86% | 75.61% | 🏆 Logistic Regression |
+| **9** | `777` | **80.49%** | **80.49%** | 78.86% | 🤝 Tie: Logistic Regression & KNN |
+| **10** | `2024` | **82.11%** | 75.61% | 79.67% | 🏆 Logistic Regression |
+
+---
+
+### 7.3 Win Count Summary & Cross-Run Statistics
+
+#### Model Win Count Distribution (Across 10 Runs)
+| Model | Outright Wins | Tied Wins | Total Winning Runs | Win Rate (%) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Logistic Regression** | **8** | **2** | **10** | **100.0%** |
+| **Decision Tree** | 0 | 1 | 1 | 10.0% |
+| **K-Nearest Neighbors (KNN)** | 0 | 1 | 1 | 10.0% |
+
+#### Cross-Run Stability & Variance
+* **Logistic Regression**: Mean Accuracy = **82.60%** $\pm$ $2.37\%$ (Range: $78.86\% - 86.18\%$)
+* **Decision Tree**: Mean Accuracy = **80.57%** $\pm$ $2.75\%$ (Range: $75.61\% - 83.74\%$)
+* **K-Nearest Neighbors (KNN)**: Mean Accuracy = **80.16%** $\pm$ $2.69\%$ (Range: $75.61\% - 83.74\%$)
+
+---
+
+### 7.4 Cross-Run Model Performance Visualization
+
+The empirical accuracy trajectories across all 10 runs are plotted below:
+
+![Model Accuracy Across 10 Stratified Train-Test Splits](docs/images/ten_runs_accuracy_comparison.png)
+
+*Figure 5: Test accuracy comparison across 10 random stratified 80:20 splits on `train.csv`. Logistic Regression consistently forms the upper performance frontier across all runs.*
+
+---
+
+### 7.5 Research Verdict: Does Decision Tree Always Win?
+> **Definitive Empirical Finding:**  
+> **NO.** The Decision Tree did **not** achieve the highest accuracy in every run.  
+> In fact, the Decision Tree **never won outright in any of the 10 experiments** (it achieved a single tie in Run 2 and was beaten in the other 9 runs by Logistic Regression).
+
+#### Why Did Logistic Regression Outperform Decision Tree Across Multiple Splits?
+1. **Overfitting & Split Brittleness in Decision Trees**: On moderately sized real-world datasets with missing values, greedy orthogonal tree splits are highly volatile. A small change in sample composition shifts root or branch thresholds, causing test set accuracy to fluctuate widely (from $83.74\%$ down to $75.61\%$).
+2. **Inductive Bias & Boundary Smoothness in Logistic Regression**: Logistic Regression estimates continuous probabilities with a global linear hyperplane. Its smooth inductive bias acts as an intrinsic regularizer against noise and missing entries, enabling it to generalize reliably and win or tie in $100\%$ of experiments ($10$ out of $10$ runs).
+3. **Core Conclusion**: The model that appears to be the "highest-performing" on a single pristine dataset (Decision Tree on Kaggle's $4,269$ records) is **not necessarily the best model** when tested across varied splits and realistic data conditions.
+
+---
+
+## 8. Interpretability & Complexity Evaluation
 
 The models were qualitatively and quantitatively benchmarked across five dimensions of operational readiness:
 
@@ -231,38 +315,41 @@ The models were qualitatively and quantitatively benchmarked across five dimensi
 
 ---
 
-## 8. Discussion & Conclusion
+## 9. Discussion & Conclusion
 
 ### Direct Answer to the Research Question
 > *"If one model is more accurate but less interpretable, should it always be selected?"*
 
-**No. Predictive accuracy alone should never be the sole criterion for selecting a machine learning model in high-stakes domains like loan underwriting.** Model selection must balance four competing dimensions: predictive accuracy, asymmetric financial error costs (Type I credit default risk vs. Type II lost customer opportunity), regulatory auditability, and operational complexity.
+**No. Predictive accuracy alone should never be the sole criterion for selecting a machine learning model in high-stakes domains like loan underwriting.**
+
+Our comparative investigation across both the primary benchmark dataset ($N=4,269$) and the secondary multi-split validation dataset ($N=614$) reveals two critical insights:
+1. **The "Best" Model Depends on Data Realism and Split Stability**: On the synthetic, perfectly separated Kaggle dataset, the Decision Tree achieved $96.84\%$ accuracy. However, across 10 independent stratified splits on the realistic $614$-record dataset (`train.csv`), **Logistic Regression was superior in 10 out of 10 runs** (Mean Accuracy: $82.60\%$ vs. $80.57\%$), demonstrating that trees can overfit to specific sample splits.
+2. **Asymmetric Error Costs and Legal Auditability Trump Marginal Accuracy Gains**: In credit underwriting, a false approval (Type I error) causes immediate default loss, while Adverse Action regulations demand mathematically defensible explanations to rejected applicants. Logistic Regression guarantees global monotonicity and calibrated probabilities, making it the most reliable operational choice in live banking.
 
 ### Summary of Empirical Findings & Model Verdicts
 
-| Model | Final Verdict & Recommendation | Rationale |
-| :--- | :--- | :--- |
-| **Decision Tree (`depth=5`)** | 🏆 **Best Overall Operational Model** | Achieved the highest accuracy ($96.84\%$), highest F1 ($97.44\%$), and lowest false approvals ($9$ errors). It resolves the accuracy-interpretability dilemma by providing human-readable if-then decision paths that loan officers can easily audit. |
-| **Logistic Regression** | ⚖️ **Best for Strict Regulatory Compliance** | Solid baseline ($91.33\%$ accuracy). Its continuous, globally monotonic log-odds formula ensures legally defensible Adverse Action notices (e.g., credit score increases can never arbitrarily trigger rejection). |
-| **K-Nearest Neighbors ($k=5$)** | ❌ **Not Recommended for Credit Risk** | Lowest accuracy ($89.46\%$), highest capital loss risk ($51$ false approvals), slowest inference scaling ($\mathcal{O}(Nd)$), and opaque decision mechanics in 11D space. |
+| Model | Primary Dataset ($N=4,269$, Single Split) | Secondary Dataset ($N=614$, 10-Split Mean) | Final Verdict & Recommendation | Rationale |
+| :--- | :---: | :---: | :--- | :--- |
+| **Logistic Regression** | 91.33% | **82.60% (Won 10/10 runs)** | 🏆 **Best Operational & Generalization Model** | Consistently superior generalization across multiple train-test splits. Continuous, monotonic log-odds ensure full regulatory compliance. |
+| **Decision Tree (`depth=5`)** | **96.84%** | 80.57% (Won 1/10 runs) | ⚖️ **Strong for Pristine Rule Extraction** | Highly accurate on clean separable data with intuitive if-then rules, but exhibits split sensitivity and boundary brittleness on noisy real-world data. |
+| **K-Nearest Neighbors ($k=5$)** | 89.46% | 80.16% (Won 1/10 runs) | ❌ **Not Recommended for Underwriting** | Lowest accuracy, highest default risk, slowest inference ($\mathcal{O}(Nd)$), and opaque decision mechanics in high-dimensional space. |
 
 ### Final Research Conclusions
-1. **The Accuracy–Interpretability Dilemma Is Not Absolute**: Contrary to the common assumption that higher accuracy requires opaque models, shallow Decision Trees demonstrated that non-linear rule-based models can simultaneously maximize predictive power and transparency in credit scoring.
-2. **Asymmetric Error Costs Outweigh Raw Accuracy**: In credit underwriting, a $1\%$ difference in raw accuracy is far less critical than the distribution of errors: 9 false approvals with Decision Tree versus 51 with KNN represents a massive difference in potential institutional capital loss.
-3. **Credit History as the Universal Decider**: Both parametric log-odds and non-parametric split metrics independently converged on `cibil_score` as the dominant factor, demonstrating that borrower credit history outweighs income or declared assets in loan granting.
+1. **The Highest-Performing Model Is Not Always the Best Model**: A model that wins on a single benchmark dataset may fail to generalize across diverse splits or real-world distributions.
+2. **Interpretability Enhances Operational Safety**: Simple, interpretable models (Logistic Regression and shallow Decision Trees) allow domain experts to verify that decisions align with institutional risk policies.
+3. **Credit History as the Universal Decider**: Across both datasets and all algorithms, applicant credit rating (`cibil_score` / `Credit_History`) proved to be the single most decisive factor in determining creditworthiness.
 
 ---
 
-## 9. Limitations & Responsible AI
+## 10. Limitations & Responsible AI
 
-* **Single Split Protocol**: Results are evaluated on a single stratified 80/20 train/test split. While stratified, repeated k-fold cross-validation would provide tighter confidence bounds on performance variance.
-* **Hyperparameter Search Scope**: Models used standard fixed hyperparameters (`max_depth=5`, $k=5$, `max_iter=1000`). Grid or Bayesian optimization could alter relative rankings.
-* **Fairness & Disparate Impact**: The dataset lacks demographic attributes (age, gender, ethnicity), precluding formal disparate impact analysis. In production credit underwriting, compliance with the Equal Credit Opportunity Act (ECOA) is mandatory.
-* **Synthetic Data Warning**: The absence of missing values and the presence of unusual negative asset valuations suggest synthetic generation. Findings should not be extrapolated directly to live production loan books without calibration on audited banking data.
+* **Data Scope**: The primary dataset represents clean synthetic profiles; the secondary dataset contains $614$ records. Real-world commercial lending models are trained on hundreds of thousands of institutional records.
+* **Hyperparameter Search Scope**: Models used standard fixed hyperparameters (`max_depth=5`, $k=5$, `max_iter=1000`). Further hyperparameter optimization could marginally adjust scores.
+* **Fairness & Disparate Impact**: Compliance with the Equal Credit Opportunity Act (ECOA) mandates auditing protected attributes (gender, marital status) to eliminate historical bias before automated deployment.
 
 ---
 
-## 10. Team Members & Contributions
+## 11. Team Members & Contributions
 
 **Team 09 — B.Tech Computer Science and Engineering (Division B)**  
 *St. Joseph's College of Engineering and Technology, Palai*
@@ -272,11 +359,11 @@ The models were qualitatively and quantitatively benchmarked across five dimensi
 | **Vismaya Theresa Benny** | `SJC24CS216` | **Member 1: Data Preprocessing**<br>Dataset ingestion, whitespace cleaning, categorical encoding, stratified splitting, and feature standardization. | [`member1_data_preprocessing.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/member1_data_preprocessing.py) |
 | **Annu James** | `SJC24CS071` | **Member 2: Model Training**<br>Model instantiation (LogReg, KNN, Decision Tree), training benchmarking, timer measurements, and prediction pipeline. | [`member2_model_training.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/member2_model_training.py) |
 | **Athul Raj** | `SJC24CS081` | **Member 3: Model Evaluation**<br>Calculation of Accuracy, Precision, Recall, F1-scores, confusion matrix decomposition, and performance bar charts. | [`member3_model_evaluation.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/member3_model_evaluation.py) |
-| **Joshwin James** | `SJC24CS140` | **Member 4: Interpretability & Synthesis**<br>Extraction of LogReg coefficients, tree complexity metrics, high-resolution tree rendering, and final comparative synthesis. | [`member4_interpretability.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/member4_interpretability.py) |
+| **Joshwin James** | `SJC24CS140` | **Member 4: Interpretability & Synthesis**<br>Extraction of LogReg coefficients, tree complexity metrics, multi-split robustness experiments, and comparative synthesis. | [`member4_interpretability.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/member4_interpretability.py), [`experiment_10_runs.py`](file:///C:/Users/joshw/Downloads/Ml%20Projcet/experiment_10_runs.py) |
 
 ---
 
-## 11. Technologies Used
+## 12. Technologies Used
 
 * **Language**: Python 3.11+
 * **Data Processing**: Pandas ($\ge 2.0.0$), NumPy ($\ge 1.24.0$)
@@ -284,7 +371,9 @@ The models were qualitatively and quantitatively benchmarked across five dimensi
   - `sklearn.linear_model.LogisticRegression`
   - `sklearn.neighbors.KNeighborsClassifier`
   - `sklearn.tree.DecisionTreeClassifier`, `plot_tree`
-  - `sklearn.preprocessing.StandardScaler`
+  - `sklearn.preprocessing.StandardScaler`, `OneHotEncoder`
+  - `sklearn.impute.SimpleImputer`
+  - `sklearn.pipeline.Pipeline`, `sklearn.compose.ColumnTransformer`
   - `sklearn.model_selection.train_test_split`
   - `sklearn.metrics` (`accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `confusion_matrix`, `roc_curve`, `roc_auc_score`)
 * **Visualization**: Matplotlib ($\ge 3.7.0$)
@@ -292,7 +381,7 @@ The models were qualitatively and quantitatively benchmarked across five dimensi
 
 ---
 
-## 12. Installation & Reproduction Guide
+## 13. Installation & Reproduction Guide
 
 ### 1. Repository Setup
 ```bash
@@ -314,13 +403,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Dataset Configuration
-Place the dataset file in the project root or the `data/` directory named:
-* `loan_approval_dataset (1).csv` OR `loan_approval_dataset.csv`
-
-*(The repository includes automated candidate path resolution).*
-
-### 4. Running the Experiment
+### 3. Running the Primary Pipeline (Kaggle Dataset, N=4,269)
 Execute the unified pipeline runner:
 ```bash
 python main.py
@@ -341,6 +424,15 @@ python member3_model_evaluation.py
 python member4_interpretability.py
 ```
 
+### 4. Running the Multi-Split Robustness Experiment (Secondary Dataset, N=614)
+To execute the 10-split cross-validation experiment and reproduce all accuracy tables and comparison charts:
+```bash
+python experiment_10_runs.py
+
+# Alternatively via main.py:
+python main.py --multi-split
+```
+
 ### 5. Regenerating Documentation Visualizations
 To re-generate all publication-quality chart assets in `docs/images/`:
 ```bash
@@ -349,10 +441,11 @@ python generate_visualizations.py
 
 ---
 
-## 13. References
+## 14. References
 
 1. Sharma, A. (2023). *Loan Approval Prediction Dataset*. Kaggle. Available at: [https://www.kaggle.com/datasets/architsharma01/loan-approval-prediction-dataset](https://www.kaggle.com/datasets/architsharma01/loan-approval-prediction-dataset)
-2. Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning: Data Mining, Inference, and Prediction*. 2nd Edition, Springer.
-3. Molnar, C. (2022). *Interpretable Machine Learning: A Guide for Making Black Box Models Explainable*. 2nd Edition.
-4. Breiman, L., Friedman, J., Stone, C. J., & Olshen, R. A. (1984). *Classification and Regression Trees*. CRC Press.
-5. Pedregosa, F., et al. (2011). *Scikit-learn: Machine Learning in Python*. Journal of Machine Learning Research, 12, 2825-2830.
+2. Analytics Vidhya. (2021). *Loan Prediction Practice Problem Dataset (`train.csv`)*. Available at: [https://datahack.analyticsvidhya.com/contest/practice-problem-loan-prediction-iii/](https://datahack.analyticsvidhya.com/contest/practice-problem-loan-prediction-iii/)
+3. Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning: Data Mining, Inference, and Prediction*. 2nd Edition, Springer.
+4. Molnar, C. (2022). *Interpretable Machine Learning: A Guide for Making Black Box Models Explainable*. 2nd Edition.
+5. Breiman, L., Friedman, J., Stone, C. J., & Olshen, R. A. (1984). *Classification and Regression Trees*. CRC Press.
+6. Pedregosa, F., et al. (2011). *Scikit-learn: Machine Learning in Python*. Journal of Machine Learning Research, 12, 2825-2830.

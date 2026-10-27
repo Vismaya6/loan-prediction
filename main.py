@@ -60,5 +60,10 @@ def run_pipeline(data_path=None):
 
 
 if __name__ == "__main__":
-    cli_path = sys.argv[1] if len(sys.argv) > 1 else None
-    run_pipeline(cli_path)
+    if len(sys.argv) > 1 and sys.argv[1] in ("--multi-split", "--experiment", "train.csv"):
+        from experiment_10_runs import run_10_experiments
+        run_10_experiments()
+    else:
+        cli_path = sys.argv[1] if len(sys.argv) > 1 else None
+        run_pipeline(cli_path)
+
